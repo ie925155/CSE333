@@ -56,7 +56,8 @@ typedef void(*LLPayloadFreeFnPtr)(LLPayload_t payload);
 //    -1  if payload_a < payload_b
 //     0  if payload_a == payload_b
 //    +1  if payload_a > payload_b
-typedef int(*LLPayloadComparatorFnPtr)(LLPayload_t payload_a, LLPayload_t payload_b);
+typedef int(*LLPayloadComparatorFnPtr)(LLPayload_t payload_a,
+  LLPayload_t payload_b);
 
 // Allocate and return a new linked list.  The caller takes responsibility for
 // eventually calling FreeLinkedList to free memory associated with the list.

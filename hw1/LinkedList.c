@@ -19,10 +19,15 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "CSE333.h"
 #include "LinkedList.h"
 #include "LinkedList_priv.h"
+
+typedef struct {
+  int num;
+} ExamplePayload, *ExamplePayloadPtr;
 
 LinkedList AllocateLinkedList(void) {
   // allocate the linked list record
@@ -34,8 +39,7 @@ LinkedList AllocateLinkedList(void) {
 
   // Step 1.
   // initialize the newly allocated record structure
-
-
+  memset(ll, 0x00, sizeof(LinkedListHead));
 
   // return our newly minted linked list
   return ll;
@@ -51,7 +55,10 @@ void FreeLinkedList(LinkedList list,
   // sweep through the list and free all of the nodes' payloads as
   // well as the nodes themselves
   while (list->head != NULL) {
-
+      LinkedListNodePtr curr = list->head;
+      list->head = list->head->next;
+      payload_free_function(curr->payload);
+      free(curr);
   }
 
   // free the list record
@@ -93,8 +100,11 @@ bool PushLinkedList(LinkedList list, LLPayload_t payload) {
 
   // Step 3.
   // typical case; list has >=1 elements
-
-
+  ln->prev = NULL;
+  ln->next = list->head;
+  list->head->prev = ln;
+  list->head = ln;
+  list->num_elements++;
 
   // return success
   return true;
@@ -112,6 +122,18 @@ bool PopLinkedList(LinkedList list, LLPayload_t *payload_ptr) {
   // Be sure to call free() to deallocate the memory that was
   // previously allocated by PushLinkedList().
 
+  if (list->num_elements == 0)
+      return false;
+
+  LinkedListNodePtr curr = list->head;
+  *payload_ptr = curr->payload;
+  list->head = list->head->next;
+  free(curr);
+  if (list->head == NULL)
+    list->tail = NULL;
+  else
+    list->head->prev = NULL;
+  list->num_elements--;
 
 
   return true;
@@ -125,6 +147,32 @@ bool AppendLinkedList(LinkedList list, LLPayload_t payload) {
   // PushLinkedList, but obviously you need to add to the end
   // instead of the beginning.
 
+  // allocate space for the new node.
+  LinkedListNodePtr ln =
+    (LinkedListNodePtr) malloc(sizeof(LinkedListNode));
+  if (ln == NULL) {
+    // out of memory
+    return false;
+  }
+
+  // set the payload
+  ln->payload = payload;
+
+  if (list->num_elements == 0) {
+    // degenerate case; list is currently empty
+    Verify333(list->head == NULL);  // debugging aid
+    Verify333(list->tail == NULL);  // debugging aid
+    ln->next = ln->prev = NULL;
+    list->head = list->tail = ln;
+    list->num_elements = 1U;
+    return true;
+  }
+
+  ln->prev = list->tail;
+  ln->next = NULL;
+  list->tail->next = ln;
+  list->tail = ln;
+  list->num_elements++;
 
 
   return true;
@@ -136,8 +184,18 @@ bool SliceLinkedList(LinkedList list, LLPayload_t *payload_ptr) {
   Verify333(list != NULL);
 
   // Step 6: implement SliceLinkedList.
+  if (list->num_elements == 0)
+    return false;
 
-
+  *payload_ptr = list->tail->payload;
+  LinkedListNodePtr curr = list->tail;
+  list->tail = curr->prev;
+  if (list->tail == NULL)
+    list->head = NULL;
+  else
+    list->tail->next = NULL;
+  free(curr);
+  list->num_elements--;
 
   return true;
 }
@@ -231,7 +289,10 @@ bool LLIteratorNext(LLIter iter) {
 
   // Step 7: if there is another node beyond the iterator, advance to it,
   // and return true.
-
+  if (iter->node->next != NULL) {
+      iter->node = iter->node->next;
+      return true;
+  }
 
 
   // Nope, there isn't another node, so return failure.
@@ -259,7 +320,10 @@ bool LLIteratorPrev(LLIter iter) {
 
   // Step 8:  if there is another node beyond the iterator, advance to it,
   // and return true.
-
+  if (iter->node->prev != NULL) {
+     iter->node = iter->node->prev;
+     return true;
+  }
 
 
   // nope, so return failure.
@@ -296,9 +360,36 @@ bool LLIteratorDelete(LLIter iter,
   // Be sure to call the payload_free_function to free the payload
   // the iterator is pointing to, and also free any LinkedList
   // data structure element as appropriate.
+  if (iter->list->num_elements == 0)
+    return false;
 
-
-
+  LinkedListNodePtr curr = iter->node;
+  if (--iter->list->num_elements == 0) {
+    iter->node = NULL;
+    iter->list->head = iter->list->tail = NULL;
+    if(payload_free_function != NULL)
+      payload_free_function(curr->payload);
+    free(curr);
+    return false;
+  }
+  iter->node = (curr->next != NULL) ? curr->next : curr->prev;
+  if (curr->prev == NULL) {
+    if (curr->next != NULL) {
+      curr->next->prev = NULL;
+      iter->list->head = curr->next;
+    }
+  } else if (curr->next == NULL) {
+    if (curr->prev != NULL) {
+      curr->prev->next = NULL;
+      iter->list->tail = curr->prev;
+    }
+  } else {
+    curr->prev->next = curr->next;
+    curr->next->prev = curr->prev;
+  }
+  if(payload_free_function != NULL)
+    payload_free_function(curr->payload);
+  free(curr);
   return true;
 }
 
