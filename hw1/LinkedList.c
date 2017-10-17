@@ -37,7 +37,6 @@ LinkedList AllocateLinkedList(void) {
     return (LinkedList) NULL;
   }
 
-  // Step 1.
   // initialize the newly allocated record structure
   memset(ll, 0x00, sizeof(LinkedListHead));
 
@@ -51,7 +50,6 @@ void FreeLinkedList(LinkedList list,
   Verify333(list != NULL);
   Verify333(payload_free_function != NULL);
 
-  // Step 2.
   // sweep through the list and free all of the nodes' payloads as
   // well as the nodes themselves
   while (list->head != NULL) {
@@ -98,7 +96,6 @@ bool PushLinkedList(LinkedList list, LLPayload_t payload) {
     return true;
   }
 
-  // Step 3.
   // typical case; list has >=1 elements
   ln->prev = NULL;
   ln->next = list->head;
@@ -115,26 +112,19 @@ bool PopLinkedList(LinkedList list, LLPayload_t *payload_ptr) {
   Verify333(payload_ptr != NULL);
   Verify333(list != NULL);
 
-  // Step 4: implement PopLinkedList.  Make sure you test for
-  // and empty list and fail.  If the list is non-empty, there
-  // are two cases to consider: (a) a list with a single element in it
-  // and (b) the general case of a list with >=2 elements in it.
-  // Be sure to call free() to deallocate the memory that was
-  // previously allocated by PushLinkedList().
-
   if (list->num_elements == 0)
       return false;
 
   LinkedListNodePtr curr = list->head;
   *payload_ptr = curr->payload;
   list->head = list->head->next;
-  free(curr);
   if (list->head == NULL)
     list->tail = NULL;
   else
     list->head->prev = NULL;
   list->num_elements--;
 
+  free(curr);
 
   return true;
 }
@@ -142,10 +132,6 @@ bool PopLinkedList(LinkedList list, LLPayload_t *payload_ptr) {
 bool AppendLinkedList(LinkedList list, LLPayload_t payload) {
   // defensive programming: check argument for safety.
   Verify333(list != NULL);
-
-  // Step 5: implement AppendLinkedList.  It's kind of like
-  // PushLinkedList, but obviously you need to add to the end
-  // instead of the beginning.
 
   // allocate space for the new node.
   LinkedListNodePtr ln =
@@ -183,7 +169,6 @@ bool SliceLinkedList(LinkedList list, LLPayload_t *payload_ptr) {
   Verify333(payload_ptr != NULL);
   Verify333(list != NULL);
 
-  // Step 6: implement SliceLinkedList.
   if (list->num_elements == 0)
     return false;
 
@@ -287,8 +272,6 @@ bool LLIteratorNext(LLIter iter) {
   Verify333(iter->list != NULL);
   Verify333(iter->node != NULL);
 
-  // Step 7: if there is another node beyond the iterator, advance to it,
-  // and return true.
   if (iter->node->next != NULL) {
       iter->node = iter->node->next;
       return true;
@@ -318,8 +301,6 @@ bool LLIteratorPrev(LLIter iter) {
   Verify333(iter->list != NULL);
   Verify333(iter->node != NULL);
 
-  // Step 8:  if there is another node beyond the iterator, advance to it,
-  // and return true.
   if (iter->node->prev != NULL) {
      iter->node = iter->node->prev;
      return true;
@@ -347,19 +328,6 @@ bool LLIteratorDelete(LLIter iter,
   Verify333(iter->list != NULL);
   Verify333(iter->node != NULL);
 
-  // Step 9: implement LLIteratorDelete.  This is the most
-  // complex function you'll build.  There are several cases
-  // to consider:
-  //
-  // - degenerate case: the list becomes empty after deleting.
-  // - degenerate case: iter points at head
-  // - degenerate case: iter points at tail
-  // - fully general case: iter points in the middle of a list,
-  //                       and you have to "splice".
-  //
-  // Be sure to call the payload_free_function to free the payload
-  // the iterator is pointing to, and also free any LinkedList
-  // data structure element as appropriate.
   if (iter->list->num_elements == 0)
     return false;
 
@@ -367,8 +335,7 @@ bool LLIteratorDelete(LLIter iter,
   if (--iter->list->num_elements == 0) {
     iter->node = NULL;
     iter->list->head = iter->list->tail = NULL;
-    if(payload_free_function != NULL)
-      payload_free_function(curr->payload);
+    payload_free_function(curr->payload);
     free(curr);
     return false;
   }
@@ -387,8 +354,7 @@ bool LLIteratorDelete(LLIter iter,
     curr->prev->next = curr->next;
     curr->next->prev = curr->prev;
   }
-  if(payload_free_function != NULL)
-    payload_free_function(curr->payload);
+  payload_free_function(curr->payload);
   free(curr);
   return true;
 }
