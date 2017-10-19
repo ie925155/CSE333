@@ -350,15 +350,6 @@ int HTIteratorPastEnd(HTIter iter) {
     && LLIteratorHasPrev(iter->bucket_it))) {
     return 0;
   }
-  int i;
-  for (i = iter->bucket_num+1; i < iter->ht->num_buckets; i++) {
-    if (NumElementsInLinkedList(iter->ht->buckets[i]) > 0) {
-      break;
-    }
-  }
-  if (i < iter->ht->num_buckets) {
-    return 0;
-  }
 
   return 1;  // you might need to change this return value.
 }
