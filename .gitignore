@@ -18,3 +18,9 @@ hw1/libhw1\.a
 \.tags
 
 \.tags1
+
+*.gcno
+
+*.gcov
+
+*.gcda
