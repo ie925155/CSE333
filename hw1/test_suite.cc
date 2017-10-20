@@ -22,7 +22,7 @@
 using std::cout;
 using std::endl;
 
-unsigned int hw1_maxpoints = 230;
+unsigned int hw1_maxpoints = 260;
 unsigned int hw1_points = 0;
 
 void HW1ResetPoints() {

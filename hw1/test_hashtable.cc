@@ -25,6 +25,8 @@ extern "C" {
   #include "./LinkedList.h"
   #include "./LinkedList_priv.h"
 }
+
+#include <limits.h>
 #include "./test_suite.h"
 #include "./test_hashtable.h"
 
@@ -45,6 +47,15 @@ void TestPayloadFree(HTValue_t payload) {
   ASSERT_EQ((static_cast<Payload *>(payload))->magic_num,
             static_cast<int>(0xDEADBEEF));
   free(payload);
+}
+
+typedef struct {
+  int num;
+} ExampleValue, *ExampleValuePtr;
+
+void ExampleValueFree(HTValue_t value) {
+  Verify333(value != NULL);
+  free(value);
 }
 
 TEST_F(Test_HashTable, HTSTestAllocFree) {
@@ -302,4 +313,49 @@ TEST_F(Test_HashTable, HTSTestIterator) {
   HW1Addpoints(10);
 }
 
+
+TEST_F(Test_HashTable, HTSTestLookup) {
+  ExampleValuePtr evp;
+  HashTable ht;
+  HTKeyValue kv, old_kv;
+  int i;
+
+  ht = AllocateHashTable(20);
+
+  // insert 20,000 elements (load factor = 2.0)
+  for (i = 0; i < 20000; i++) {
+    evp = (ExampleValuePtr) malloc(sizeof(ExampleValue));
+    ASSERT_NE(evp, static_cast<ExampleValuePtr>(NULL));
+    evp->num = i;
+
+    // make sure HT has the right # of elements in it to start
+    ASSERT_EQ(NumElementsInHashTable(ht), (HWSize_t) i);
+
+    // insert a new element
+    kv.key = FNVHashInt64((HTValue_t)i);
+    kv.value = (HTValue_t)evp;
+    ASSERT_EQ(InsertHashTable(ht, kv, &old_kv), 1);
+
+    // make sure hash table has right # of elements post-insert
+    ASSERT_EQ(NumElementsInHashTable(ht), (HWSize_t) (i+1));
+  }
+  HW1Addpoints(10);
+
+  for(i = 0; i < 10000; i++) {
+    ASSERT_EQ(LookupHashTable(ht, FNVHashInt64((HTValue_t)i), &kv), 1);
+    ASSERT_EQ(kv.key, FNVHashInt64((HTValue_t)i));
+    ASSERT_EQ(((ExampleValuePtr) kv.value)->num, i);
+  }
+  HW1Addpoints(10);
+
+  // free the hash table
+  FreeHashTable(ht, &ExampleValueFree);
+}
+
+TEST_F(Test_HashTable, HTSTestMemoryLimit) {
+  HashTable ht;
+  ht = AllocateHashTable(INT_MAX);
+  ASSERT_EQ(NULL, ht);
+  HW1Addpoints(10);
+}
 }  // namespace hw1
