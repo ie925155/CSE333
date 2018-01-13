@@ -68,22 +68,36 @@ char *ReadFile(const char *filename, HWSize_t *size) {
   // Use the stat system call to fetch a "struct stat" that describes
   // properties of the file. ("man 2 stat"). [You can assume we're on a 64-bit
   // system, with a 64-bit off_t field.]
+  stat(filename, &filestat);
 
 
   // STEP 2.
   // Make sure this is a "regular file" and not a directory
   // or something else.  (use the S_ISREG macro described
   // in "man 2 stat")
+  if (!S_ISREG(filestat.st_mode)) {
+    return NULL;
+  }
 
 
   // STEP 3.
   // Attempt to open the file for reading.  (man 2 open)
-
+  fd = open(filename, O_RDONLY);
+  if (fd == -1) {
+    fprintf(stderr, "%s err=%d\n", __FUNCTION__, errno);
+    *size = 0;
+    return NULL;
+  }
 
   // STEP 4.
   // Allocate space for the file, plus 1 extra byte to
   // NULL-terminate the string.
-
+  buf = (char *) malloc(filestat.st_size+1);
+  if (buf == NULL) {
+    fprintf(stderr, "%s malloc failed\n", __FUNCTION__);
+    *size = 0;
+    return NULL;
+  }
 
   // STEP 5.
   // Read in the file contents.  Use the read system call. (man 2 read.)  Be
@@ -94,8 +108,18 @@ char *ReadFile(const char *filename, HWSize_t *size) {
   // recoverable error.  (Read the man page for "read()" carefully, in
   // particular what the return values -1 and 0 imply.)
   left_to_read = filestat.st_size;
+  numread = 0;
   while (left_to_read > 0) {
-
+    numread = read(fd, buf+filestat.st_size-left_to_read, left_to_read);
+    if (numread == -1) {
+      fprintf(stderr, "%s read file content error %d\n", __FUNCTION__, errno);
+      *size = 0;
+      free(buf);
+      close(fd);
+      return NULL;
+    } else if (numread == 0)
+      break;
+    left_to_read -= numread;
   }
 
   // Great, we're done!  We hit the end of the file and we
@@ -124,7 +148,10 @@ HashTable BuildWordHT(char *filename) {
   // file turns out to be empty (i.e., its length is 0),
   // or you couldn't read the file at all, return NULL to indicate
   // failure.
-
+  filecontent = ReadFile(filename, &filelen);
+  if (filecontent == NULL && filelen == 0) {
+    return NULL;
+  }
 
   // Verify that the file contains only ASCII text.  We won't try to index any
   // files that contain non-ASCII text; unfortunately, this means we aren't
@@ -167,7 +194,7 @@ void FreeWordHT(HashTable table) {
 
 static void LoopAndInsert(HashTable tab, char *content) {
   char *curptr = content, *wordstart = content;
-
+  bool trigger = false;
   // STEP 7.
   // This is the interesting part of Part A!
   //
@@ -202,9 +229,34 @@ static void LoopAndInsert(HashTable tab, char *content) {
   //
   //    AddToHashTable(tab, wordstart, pos);
   //
-
+  DocPositionOffset_t pos = 0, idx = 0;
+  bool isalpha;
   while (1) {
-
+    isalpha = isalpha(*curptr);
+    if (!trigger && isalpha) {
+      wordstart = curptr;
+      pos = idx;
+      trigger = true;
+    }else if (trigger && !isalpha) {
+      const int word_size = curptr - wordstart + 1;
+      char *word = (char *) malloc(word_size);
+      memcpy(word, wordstart, word_size-1);
+      word[word_size-1] = '\0';
+      AddToHashtable(tab, word, pos);
+      if (*curptr == '\0') {
+        break;
+      } else {
+        trigger = false;
+      }
+    }
+    if (isalpha) {
+      *curptr = tolower(*curptr);
+    }
+    curptr++;
+    idx++;
+    if (*curptr == '\0') {
+      break;
+    }
   }
 }
 
@@ -233,8 +285,14 @@ static void AddToHashtable(HashTable tab, char *word, DocPositionOffset_t pos) {
     // No; this is the first time we've seen this word.  Allocate and prepare
     // a new WordPositions structure, and append the new position to its list
     // using a similar ugly hack as right above.
-    WordPositions *wp;
-    char *newstr;
-
+    WordPositions *wp = (WordPositions *) malloc(sizeof(WordPositions));
+    char *newstr = word;
+    wp->word = newstr;
+    wp->positions = AllocateLinkedList();
+    retval = AppendLinkedList(wp->positions, (LLPayload_t) ((intptr_t) pos));
+    Verify333(retval != 0);
+    kv.key = hashKey;
+    kv.value = (HTValue_t)wp;
+    Verify333(InsertHashTable(tab, kv, NULL) != 0);
   }
 }
