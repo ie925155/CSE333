@@ -26,6 +26,13 @@
 #include "libhw1/CSE333.h"
 #include "libhw1/HashTable.h"
 
+void ValueFree(HTValue_t value);
+
+void ValueFree(HTValue_t value) {
+  Verify333(value != NULL);
+  free(value);
+}
+
 // This structure represents a DocTable; it contains two hash tables, one
 // mapping from docid to docname, and one mapping from docname to docid.
 typedef struct doctablerecord_st {
@@ -51,7 +58,8 @@ void FreeDocTable(DocTable table) {
   Verify333(table != NULL);
 
   // STEP 1.
-
+  FreeHashTable(table->docid_to_docname, &ValueFree);
+  FreeHashTable(table->docname_to_docid, &ValueFree);
   free(table);
 }
 
@@ -80,21 +88,31 @@ DocID_t DTRegisterDocumentName(DocTable table, char *docname) {
   // free up the malloc'ed space and return the existing docid
 
   // STEP 2.
+  if ((res = DTLookupDocumentName(table, docname)) != 0) {
+    free(doccopy);
+    free(docid);
+    return res;
+  };
 
   // allocate the next docID
   table->max_id += 1;
-  *docid = table->max_id;
+  res = *docid = table->max_id;
 
   // STEP 3.
   // Set up the key/value for the docid_to_docname mapping, and
   // do the insert.
-
+  kv.key = *docid;
+  kv.value = (HTValue_t) doccopy;
+  Verify333(InsertHashTable(table->docid_to_docname, kv, &oldkv) != 0);
 
   // STEP 4.
   // Set up the key/value for the docname_to_docid mapping, and
   // do the insert.
+  kv.key = FNVHash64((unsigned char *)docname, strlen(docname));
+  kv.value = (HTValue_t) docid;
+  Verify333(InsertHashTable(table->docname_to_docid, kv, &oldkv) != 0);
 
-  return *docid;
+  return res;
 }
 
 DocID_t DTLookupDocumentName(DocTable table, char *docname) {
@@ -110,6 +128,9 @@ DocID_t DTLookupDocumentName(DocTable table, char *docname) {
   // docname_to_docid table within dt, and return
   // either "0" if the docname isn't found or the
   // docID if it is.
+  key = FNVHash64((unsigned char *)docname, strlen(docname));
+  res = LookupHashTable(table->docname_to_docid, key, &kv);
+  return (res == 1) ? (*(DocID_t *)kv.value) : 0;
 }
 
 char *DTLookupDocID(DocTable table, DocID_t docid) {
@@ -124,6 +145,8 @@ char *DTLookupDocID(DocTable table, DocID_t docid) {
   // and either return the string (i.e., the (char *)
   // saved in the value field for that key) or
   // NULL if the key isn't in the table.
+  res = LookupHashTable(table->docid_to_docname, docid, &kv);
+  return (res == 1) ? (char *)kv.value : NULL;
 }
 
 HashTable DTGetDocidTable(DocTable table) {
