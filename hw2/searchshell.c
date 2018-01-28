@@ -31,12 +31,47 @@
 #include "memindex.h"
 #include "filecrawler.h"
 
+typedef struct {
+  int32_t query_count;
+  char **queries;
+} QueriesInfo;
+
 static void Usage(void);
+static QueriesInfo parsingArguement(char str[]);
+
+static QueriesInfo parsingArguement(char str[])
+{
+  char *delim = " ";
+  char *pch;
+  QueriesInfo queriesInfo;
+  int str_len = strlen(str);
+  char tmpStr[str_len];
+  strncpy(tmpStr, str, str_len);
+  int str_count = 0;
+  pch = strtok(tmpStr, delim);
+  while (pch != NULL)
+  {
+    str_count++;
+    pch = strtok(NULL, delim);
+  }
+  queriesInfo.query_count = str_count;
+  queriesInfo.queries = (char **) malloc(sizeof(char *) * str_count);
+  str_count = 0;
+  pch = strtok(str, delim);
+  while (pch != NULL) {
+    queriesInfo.queries[str_count++] = pch;
+    pch = strtok(NULL, delim);
+  }
+  return queriesInfo;
+}
 
 int main(int argc, char **argv) {
   if (argc != 2)
     Usage();
 
+  int res;
+  DocTable dt;
+  MemIndex idx;
   // Implement searchshell!  We're giving you very few hints
   // on how to do it, so you'll need to figure out an appropriate
   // decomposition into functions as well as implementing the
@@ -50,7 +85,37 @@ int main(int argc, char **argv) {
   // When searchshell detects end-of-file on stdin (cntrl-D from the
   // keyboard), searchshell should free all dynamically allocated
   // memory and any other allocated resources and then exit.
-
+  res = CrawlFileTree(argv[1], &dt, &idx);
+  Verify333(res == 1);
+  char str[256] = {0x0};
+  QueriesInfo queriesInfo;
+  LinkedList llres;
+  LLIter llit;
+  SearchResult *sr;
+  char *docname;
+  while (1) {
+    fprintf(stdout, "%s\n", "enter query:");
+    fgets(str, sizeof(str), stdin);
+    str[strlen(str)-1] = '\0';
+    queriesInfo = parsingArguement(str);
+    llres = MIProcessQuery(idx, queriesInfo.queries, queriesInfo.query_count);
+    if (llres == NULL) {
+      continue;
+    }
+    llit  = LLMakeIterator(llres, 0);
+    while (LLIteratorHasNext(llit)) {
+      LLIteratorGetPayload(llit, (LLPayload_t*) &sr);
+      docname = DTLookupDocID(dt, sr->docid);
+      fprintf(stdout, "%s (%u)\n", docname, sr->rank);
+      LLIteratorNext(llit);
+    }
+    LLIteratorGetPayload(llit, (LLPayload_t*) &sr);
+    docname = DTLookupDocID(dt, sr->docid);
+    fprintf(stdout, "%s (%u)\n", docname, sr->rank);
+    LLIteratorFree(llit);
+    FreeLinkedList(llres, (LLPayloadFreeFnPtr)free);
+    free(queriesInfo.queries);
+  }
   return EXIT_SUCCESS;
 }
 
