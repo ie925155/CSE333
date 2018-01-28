@@ -24,3 +24,9 @@ hw1/libhw1\.a
 *.gcov
 
 *.gcda
+
+hw2/libhw2\.a
+
+hw2/searchshell
+
+hw2/test_suite
