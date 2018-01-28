@@ -33,15 +33,17 @@
 // When our crawler finds a directory, it invokes this function to recursively
 // descend into the directory to look for files and subdirectories.
 static void HandleDir(char *dirpath, DIR *d, DocTable *doctable,
-                      MemIndex *index);
+                      MemIndex *index, HashTable stopwordtab);
 
 // When our crawler finds a file, it invokes this function to read it in,
 // parse it, and inject it into the MemIndex. (The MemIndex is the in-memory
 // inverted index.)
-static void HandleFile(char *fpath, DocTable *doctable, MemIndex *index);
+static void HandleFile(char *fpath, DocTable *doctable, MemIndex *index,
+  HashTable *stopwordtab);
 
 
-int CrawlFileTree(char *rootdir, DocTable *doctable, MemIndex *index) {
+int CrawlFileTree(char *rootdir, DocTable *doctable, MemIndex *index,
+  HashTable *stopwordtab, bool stop_words) {
   struct stat rootstat;
   int result;
   DIR *rd;
@@ -72,8 +74,11 @@ int CrawlFileTree(char *rootdir, DocTable *doctable, MemIndex *index) {
   *index = AllocateMemIndex();
   Verify333(*index != NULL);
 
+  if (stop_words) {
+    *stopwordtab = BuildStopWordHT("stop-words-english1.txt");
+  }
   // Begin the recursive handling of the directory.
-  HandleDir(rootdir, rd, doctable, index);
+  HandleDir(rootdir, rd, doctable, index, stopwordtab);
 
   // All done, free up.
   result = closedir(rd);
@@ -83,7 +88,7 @@ int CrawlFileTree(char *rootdir, DocTable *doctable, MemIndex *index) {
 
 
 static void HandleDir(char *dirpath, DIR *d, DocTable *doctable,
-                     MemIndex *index) {
+                     MemIndex *index, HashTable stopwordtab) {
   // Loop through the directory.
   while (1) {
     char *newfile;
@@ -144,11 +149,11 @@ static void HandleDir(char *dirpath, DIR *d, DocTable *doctable,
       // "closedir()" system call when the recursive HandleDir() returns to
       // close the opened directory.
       if (S_ISREG(nextstat.st_mode)) {
-        HandleFile(newfile, doctable, index);
+        HandleFile(newfile, doctable, index, stopwordtab);
       } else if (S_ISDIR(nextstat.st_mode)) {
         DIR *dir;
         dir = opendir(newfile);
-        HandleDir(newfile, dir, doctable, index);
+        HandleDir(newfile, dir, doctable, index, stopwordtab);
         res = closedir(dir);
         Verify333(res == 0);
       }
@@ -160,15 +165,15 @@ static void HandleDir(char *dirpath, DIR *d, DocTable *doctable,
   }
 }
 
-static void HandleFile(char *fpath, DocTable *doctable, MemIndex *index) {
+static void HandleFile(char *fpath, DocTable *doctable, MemIndex *index,
+  HashTable *stopwordtab) {
   HashTable tab = NULL;
   DocID_t docID;
   HTIter it;
-
   // STEP 4.
   // Invoke the BuildWordHT() function in fileparser.h/c to
   // build the word hashtable out of the file.
-  tab = BuildWordHT(fpath);
+  tab = BuildWordHT(fpath, *stopwordtab);
   if (tab == NULL) {
     return;
   }

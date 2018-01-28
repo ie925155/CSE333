@@ -37,6 +37,8 @@
 // This variable is set if there is an error.
 extern int errno;
 
+bool is_stop_words(HashTable tab, const char* word);
+
 // A private function for freeing a WordPositions.positions list.
 static void NullWPListFree(LLPayload_t payload) { }
 
@@ -53,9 +55,10 @@ static void WordHTFree(HTValue_t payload) {
 // hash table tab.
 static void AddToHashtable(HashTable tab, char *word, DocPositionOffset_t pos);
 
+static void ReadStopWord(HashTable tab, char *content);
 // A private helper function to parse a file and build up the HashTable of
 // WordPosition structures.
-static void LoopAndInsert(HashTable tab, char *content);
+static void LoopAndInsert(HashTable tab, char *content, HashTable stopwordtab);
 
 char *ReadFile(const char *filename, HWSize_t *size) {
   struct stat filestat;
@@ -135,7 +138,7 @@ char *ReadFile(const char *filename, HWSize_t *size) {
   return buf;
 }
 
-HashTable BuildWordHT(char *filename) {
+HashTable BuildWordHT(char *filename, HashTable stopwordtab) {
   char *filecontent;
   HashTable tab;
   HWSize_t filelen, i;
@@ -172,7 +175,7 @@ HashTable BuildWordHT(char *filename) {
 
   // Loop through the file, splitting it into words and inserting a record for
   // each word.
-  LoopAndInsert(tab, filecontent);
+  LoopAndInsert(tab, filecontent, stopwordtab);
 
   // If we found no words, return NULL instead of a
   // zero-sized hashtable.
@@ -188,11 +191,60 @@ HashTable BuildWordHT(char *filename) {
   return tab;
 }
 
+HashTable BuildStopWordHT(char *filename) {
+  char *filecontent;
+  HWSize_t filelen, i;
+  HashTable tab;
+
+  filecontent = ReadFile(filename, &filelen);
+  if (filecontent == NULL && filelen == 0) {
+    return NULL;
+  }
+
+  for (i = 0; i < filelen; i++) {
+    if ((filecontent[i] == '\0') ||
+        ((unsigned char) filecontent[i] > ASCII_UPPER_BOUND)) {
+      free(filecontent);
+      return NULL;
+    }
+  }
+
+  tab = AllocateHashTable(64);
+
+  ReadStopWord(tab, filecontent);
+
+  if (NumElementsInHashTable(tab) == 0) {
+    FreeHashTable(tab, &WordHTFree);
+    tab = NULL;
+  }
+
+  free(filecontent);
+  filecontent = NULL;
+  return tab;
+}
+
 void FreeWordHT(HashTable table) {
   FreeHashTable(table, &WordHTFree);
 }
 
-static void LoopAndInsert(HashTable tab, char *content) {
+static void ReadStopWord(HashTable stopwordtab, char *content) {
+  char *curptr = content, *wordstart = content;
+  while (1) {
+    if (*curptr == '\0') {
+      break;
+    } else if (*curptr == '\n') {
+      *curptr = '\0';
+      AddToHashtable(stopwordtab, wordstart, wordstart - content);
+      wordstart = curptr + 1;
+    }
+    if (isalpha(*curptr)) {
+      *curptr = tolower(*curptr);
+    }
+    curptr++;
+  }
+}
+
+static void LoopAndInsert(HashTable tab, char *content, HashTable stopwordtab) {
   char *curptr = content, *wordstart = content;
   bool trigger = false;
   // STEP 7.
@@ -240,17 +292,29 @@ static void LoopAndInsert(HashTable tab, char *content) {
       *curptr = tolower(*curptr);
     }
     if (!trigger && isalpha) {
-      wordstart = curptr;
       trigger = true;
+      wordstart = curptr;
     } else if (trigger && !isalpha) {
-      *curptr = '\0';
-      AddToHashtable(tab, wordstart, wordstart - content);
       trigger = false;
+      *curptr = '\0';
+      if (stopwordtab != NULL && is_stop_words(stopwordtab, wordstart)) {
+        goto NEXT;
+      }
+      AddToHashtable(tab, wordstart, wordstart - content);
     }
+NEXT:
     curptr++;
   }
 }
 
+bool is_stop_words(HashTable tab, const char* word) {
+  int res;
+  HTKey_t key;
+  HTKeyValue kv;
+  key = FNVHash64((unsigned char *)word, strlen(word));
+  res = LookupHashTable(tab, key, &kv);
+  return (res == 1) ? true : false;
+}
 
 static void AddToHashtable(HashTable tab, char *word, DocPositionOffset_t pos) {
   HTKey_t hashKey;

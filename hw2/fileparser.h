@@ -96,7 +96,9 @@ typedef struct WordPositions {
 // - on success, returns a HashTable, where each HTKeyValue contains
 //     key:   FNVHash64(word)
 //     value: a malloc'ed WordPositions structure for that word
-HashTable BuildWordHT(char *filename);
+HashTable BuildWordHT(char *filename, HashTable stopwordtab);
+
+HashTable BuildStopWordHT(char *filename);
 
 // Frees all of the memory malloc'ed to build a word hashtable
 // returned by BuildWordHT().

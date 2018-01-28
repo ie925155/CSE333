@@ -42,6 +42,8 @@
 //   the inverted index.
 //
 // - returns 0 on failure (nothing is allocated), 1 on success.
-int CrawlFileTree(char *rootdir, DocTable *doctable, MemIndex *index);
+int CrawlFileTree(char *rootdir, DocTable *doctable, MemIndex *index, HashTable
+  *stopwordtab, bool stop_words);
+
 
 #endif  // _HW2_FILECRAWLER_H

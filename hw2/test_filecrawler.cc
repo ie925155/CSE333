@@ -36,20 +36,22 @@ TEST_F(Test_FileCrawler, FCTestSimple) {
   int res;
   DocTable dt;
   MemIndex idx;
+  HashTable stopwordtab = NULL;
 
   res = CrawlFileTree(const_cast<char *>("./test_tree/bash-4.2/support"),
-                      &dt,
-                      &idx);
+                      &dt, &idx, &stopwordtab, false);
   ASSERT_EQ(1, res);
   HW2Addpoints(10);
   FreeDocTable(dt);
   FreeMemIndex(idx);
   HW2Addpoints(10);
 
-  res = CrawlFileTree(const_cast<char *>("./nonexistent/"), &dt, &idx);
+  res = CrawlFileTree(const_cast<char *>("./nonexistent/"), &dt, &idx,
+    &stopwordtab, false);
   ASSERT_EQ(0, res);
   HW2Addpoints(10);
-  res = CrawlFileTree(const_cast<char *>("./test_suite.c"), &dt, &idx);
+  res = CrawlFileTree(const_cast<char *>("./test_suite.c"), &dt, &idx,
+    &stopwordtab, false);
   ASSERT_EQ(0, res);
   HW2Addpoints(10);
 }

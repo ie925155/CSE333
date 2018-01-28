@@ -36,10 +36,11 @@ typedef struct {
   char **queries;
 } QueriesInfo;
 
+extern bool is_stop_words(HashTable tab, const char* word);
 static void Usage(void);
-static QueriesInfo parsingArguement(char str[]);
+static QueriesInfo parsingArgument(char str[], HashTable tab);
 
-static QueriesInfo parsingArguement(char str[])
+static QueriesInfo parsingArgument(char str[], HashTable tab)
 {
   char *delim = " ";
   char *pch;
@@ -47,31 +48,47 @@ static QueriesInfo parsingArguement(char str[])
   int str_len = strlen(str);
   char tmpStr[str_len];
   strncpy(tmpStr, str, str_len);
-  int str_count = 0;
+  int str_count = 0, idx = 0;
   pch = strtok(tmpStr, delim);
-  while (pch != NULL)
-  {
+  while (pch != NULL) {
     str_count++;
     pch = strtok(NULL, delim);
   }
   queriesInfo.query_count = str_count;
   queriesInfo.queries = (char **) malloc(sizeof(char *) * str_count);
-  str_count = 0;
   pch = strtok(str, delim);
   while (pch != NULL) {
-    queriesInfo.queries[str_count++] = pch;
+    if (tab == NULL || !is_stop_words(tab, pch)) {
+      queriesInfo.queries[idx++] = pch;
+    }
     pch = strtok(NULL, delim);
   }
+  queriesInfo.query_count = idx;
   return queriesInfo;
 }
 
 int main(int argc, char **argv) {
-  if (argc != 2)
+  if (argc < 2)
     Usage();
+  char *rootdir = argv[1], c;
+  bool stop_words = false;
+
+  while ((c = getopt(argc, argv, "s")) != EOF) {
+    switch (c)
+    {
+      case 's':
+        stop_words = true;
+        rootdir = argv[2];
+        break;
+      default:
+        Usage();
+    }
+  }
 
   int res;
   DocTable dt;
   MemIndex idx;
+  HashTable stopwordtab = NULL;
   // Implement searchshell!  We're giving you very few hints
   // on how to do it, so you'll need to figure out an appropriate
   // decomposition into functions as well as implementing the
@@ -85,8 +102,7 @@ int main(int argc, char **argv) {
   // When searchshell detects end-of-file on stdin (cntrl-D from the
   // keyboard), searchshell should free all dynamically allocated
   // memory and any other allocated resources and then exit.
-  res = CrawlFileTree(argv[1], &dt, &idx);
-  Verify333(res == 1);
+  Verify333(CrawlFileTree(rootdir, &dt, &idx, &stopwordtab, stop_words) == 1);
   char str[256] = {0x0};
   QueriesInfo queriesInfo;
   LinkedList llres;
@@ -97,9 +113,10 @@ int main(int argc, char **argv) {
     fprintf(stdout, "%s\n", "enter query:");
     fgets(str, sizeof(str), stdin);
     str[strlen(str)-1] = '\0';
-    queriesInfo = parsingArguement(str);
+    queriesInfo = parsingArgument(str, stopwordtab);
     llres = MIProcessQuery(idx, queriesInfo.queries, queriesInfo.query_count);
     if (llres == NULL) {
+      free(queriesInfo.queries);
       continue;
     }
     llit  = LLMakeIterator(llres, 0);

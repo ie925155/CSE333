@@ -66,7 +66,7 @@ TEST_F(Test_FileParser, FPTestReadFile) {
 
 TEST_F(Test_FileParser, FPTestBuildWordHT) {
   HashTable tab =
-    BuildWordHT(const_cast<char *>("./test_tree/bash-4.2/doc/README"));
+    BuildWordHT(const_cast<char *>("./test_tree/bash-4.2/doc/README"), NULL);
   ASSERT_NE(static_cast<HashTable>(NULL), tab);
   ASSERT_EQ(NumElementsInHashTable(tab), 91U);
   HW2Addpoints(10);
@@ -138,7 +138,7 @@ TEST_F(Test_FileParser, FPTestBuildWordHT) {
 
 TEST_F(Test_FileParser, PTestBigBuildWordHT) {
   HashTable tab =
-    BuildWordHT(const_cast<char *>("./test_tree/books/paradiselost.txt"));
+    BuildWordHT(const_cast<char *>("./test_tree/books/paradiselost.txt"), NULL);
   ASSERT_NE(static_cast<HashTable>(NULL), tab);
   ASSERT_EQ(NumElementsInHashTable(tab), 10123U);
   FreeWordHT(tab);

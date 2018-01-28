@@ -38,6 +38,7 @@ TEST_F(Test_MemIndex, MITestSimple) {
   LinkedList llres;
   LLIter lit;
   unsigned int i;
+  HashTable stopwordtab = NULL;
 
   const char *q1[] = {"equations"};
   const char *q2[] = {"report", "normal"};
@@ -47,7 +48,7 @@ TEST_F(Test_MemIndex, MITestSimple) {
 
   // Crawl part of the file tree.
   res = CrawlFileTree(const_cast<char *>("./test_tree/bash-4.2/support"),
-                      &dt, &idx);
+                      &dt, &idx, &stopwordtab, false);
   ASSERT_EQ(res, 1);
   ASSERT_EQ(MINumWordsInMemIndex(idx), 3852U);
 
