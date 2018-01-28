@@ -169,6 +169,9 @@ static void HandleFile(char *fpath, DocTable *doctable, MemIndex *index) {
   // Invoke the BuildWordHT() function in fileparser.h/c to
   // build the word hashtable out of the file.
   tab = BuildWordHT(fpath);
+  if (tab == NULL) {
+    return;
+  }
 
   // STEP 5.
   // Invoke the DTRegisterDocumentName() function in
