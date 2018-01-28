@@ -232,31 +232,22 @@ static void LoopAndInsert(HashTable tab, char *content) {
   DocPositionOffset_t pos = 0, idx = 0;
   bool isalpha;
   while (1) {
-    isalpha = isalpha(*curptr);
-    if (!trigger && isalpha) {
-      wordstart = curptr;
-      pos = idx;
-      trigger = true;
-    }else if (trigger && !isalpha) {
-      const int word_size = curptr - wordstart + 1;
-      char *word = (char *) malloc(word_size);
-      memcpy(word, wordstart, word_size-1);
-      word[word_size-1] = '\0';
-      AddToHashtable(tab, word, pos);
-      if (*curptr == '\0') {
-        break;
-      } else {
-        trigger = false;
-      }
-    }
-    if (isalpha) {
-      *curptr = tolower(*curptr);
-    }
-    curptr++;
-    idx++;
     if (*curptr == '\0') {
       break;
     }
+    isalpha = isalpha(*curptr);
+    if (isalpha) {
+      *curptr = tolower(*curptr);
+    }
+    if (!trigger && isalpha) {
+      wordstart = curptr;
+      trigger = true;
+    } else if (trigger && !isalpha) {
+      *curptr = '\0';
+      AddToHashtable(tab, wordstart, wordstart - content);
+      trigger = false;
+    }
+    curptr++;
   }
 }
 
@@ -286,7 +277,8 @@ static void AddToHashtable(HashTable tab, char *word, DocPositionOffset_t pos) {
     // a new WordPositions structure, and append the new position to its list
     // using a similar ugly hack as right above.
     WordPositions *wp = (WordPositions *) malloc(sizeof(WordPositions));
-    char *newstr = word;
+    char *newstr = (char *) malloc(strlen(word)+1);
+    strncpy(newstr, word, strlen(word)+1);
     wp->word = newstr;
     wp->positions = AllocateLinkedList();
     retval = AppendLinkedList(wp->positions, (LLPayload_t) ((intptr_t) pos));
