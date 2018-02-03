@@ -232,7 +232,7 @@ LinkedList MIProcessQuery(MemIndex index, char *query[], uint8_t qlen) {
       if (res == 1) {
         sr->rank += NumElementsInLinkedList((LinkedList)kv.value);
         LLIteratorNext(llit);
-      } else { // case of not found
+      } else {  //  case of not found
         LLIteratorDelete(llit, (LLPayloadFreeFnPtr)free);
       }
     }

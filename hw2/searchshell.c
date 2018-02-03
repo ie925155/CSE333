@@ -26,6 +26,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <limits.h>
 
 #include "libhw1/CSE333.h"
 #include "memindex.h"
@@ -40,28 +41,27 @@ extern bool is_stop_words(HashTable tab, const char* word);
 static void Usage(void);
 static QueriesInfo parsingArgument(char str[], HashTable tab);
 
-static QueriesInfo parsingArgument(char str[], HashTable tab)
-{
+static QueriesInfo parsingArgument(char str[], HashTable tab) {
   char *delim = " ";
   char *pch;
+  char *saveptr;
   QueriesInfo queriesInfo;
-  int str_len = strlen(str);
-  char tmpStr[str_len];
-  strncpy(tmpStr, str, str_len);
+  char tmpStr[MAX_INPUT];
+  strncpy(tmpStr, str, MAX_INPUT);
   int str_count = 0, idx = 0;
-  pch = strtok(tmpStr, delim);
+  pch = strtok_r(tmpStr, delim, &saveptr);
   while (pch != NULL) {
     str_count++;
-    pch = strtok(NULL, delim);
+    pch = strtok_r(NULL, delim, &saveptr);
   }
   queriesInfo.query_count = str_count;
   queriesInfo.queries = (char **) malloc(sizeof(char *) * str_count);
-  pch = strtok(str, delim);
+  pch = strtok_r(str, delim, &saveptr);
   while (pch != NULL) {
     if (tab == NULL || !is_stop_words(tab, pch)) {
       queriesInfo.queries[idx++] = pch;
     }
-    pch = strtok(NULL, delim);
+    pch = strtok_r(NULL, delim, &saveptr);
   }
   queriesInfo.query_count = idx;
   return queriesInfo;
@@ -74,8 +74,7 @@ int main(int argc, char **argv) {
   bool stop_words = false;
 
   while ((c = getopt(argc, argv, "s")) != EOF) {
-    switch (c)
-    {
+    switch (c) {
       case 's':
         stop_words = true;
         rootdir = argv[2];

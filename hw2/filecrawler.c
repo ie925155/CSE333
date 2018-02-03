@@ -94,14 +94,14 @@ static void HandleDir(char *dirpath, DIR *d, DocTable *doctable,
     char *newfile;
     int res, charsize;
     struct stat nextstat;
-    struct dirent *dirent = NULL, entry;
+    struct dirent dirent, *result = NULL;
 
     // STEP 1.
     // Use the "readdir()" system call to read the next directory entry.
     // (man 3 readdir).  If we hit the end of the directory, return back
     // out of this function.
-    dirent = readdir(d);
-    if (dirent == NULL) {
+    res = readdir_r(d, &dirent, &result);
+    if (res == 0 && result == NULL) {
         break;
     }
 
@@ -111,7 +111,7 @@ static void HandleDir(char *dirpath, DIR *d, DocTable *doctable,
     // loop.) You can find out the name of the directory entry through the
     // "d_name" field of the struct dirent returned by readdir(), and you can
     // use strcmp() to compare it to "." or ".."
-    if ((strcmp(dirent->d_name, ".") == 0) || (strcmp(dirent->d_name, "..")
+    if ((strcmp(dirent.d_name, ".") == 0) || (strcmp(dirent.d_name, "..")
       == 0)) {
       continue;
     }
@@ -121,15 +121,15 @@ static void HandleDir(char *dirpath, DIR *d, DocTable *doctable,
     // we're in to get the full filename. So, we'll malloc space for:
     //
     //     dirpath + "/" + dirent->d_name + '\0'
-    charsize = strlen(dirpath) + 1 + strlen(dirent->d_name) + 1;
+    charsize = strlen(dirpath) + 1 + strlen(dirent.d_name) + 1;
     newfile = (char *) malloc(charsize);
     Verify333(newfile != NULL);
     if (dirpath[strlen(dirpath)-1] == '/') {
       // no need to add an additional '/'
-      snprintf(newfile, charsize, "%s%s", dirpath, dirent->d_name);
+      snprintf(newfile, charsize, "%s%s", dirpath, dirent.d_name);
     } else {
       // we do need to add an additional '/'
-      snprintf(newfile, charsize, "%s/%s", dirpath, dirent->d_name);
+      snprintf(newfile, charsize, "%s/%s", dirpath, dirent.d_name);
     }
 
     // Use the "stat()" system call to ask the operating system

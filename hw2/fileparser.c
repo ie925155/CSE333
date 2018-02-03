@@ -120,8 +120,9 @@ char *ReadFile(const char *filename, HWSize_t *size) {
       free(buf);
       close(fd);
       return NULL;
-    } else if (numread == 0)
+    } else if (numread == 0) {
       break;
+    }
     left_to_read -= numread;
   }
 
@@ -302,7 +303,7 @@ static void LoopAndInsert(HashTable tab, char *content, HashTable stopwordtab) {
       }
       AddToHashtable(tab, wordstart, wordstart - content);
     }
-NEXT:
+ NEXT:
     curptr++;
   }
 }
@@ -329,9 +330,9 @@ static void AddToHashtable(HashTable tab, char *word, DocPositionOffset_t pos) {
   retval = LookupHashTable(tab, hashKey, &kv);
   if (retval == 1) {
     // Yes; we just need to add a position in using AppendLinkedList().  Note
-    // how we're casting the DocPositionOffset_t position variable to an LLPayload_t to store
-    // it in the linked list payload without needing to malloc space for it.
-    // Ugly, but it works!
+    // how we're casting the DocPositionOffset_t position variable to an
+    // LLPayload_t to store it in the linked list payload without needing to
+    // malloc space for it. Ugly, but it works!
     WordPositions *wp = (WordPositions *) kv.value;
     retval = AppendLinkedList(wp->positions, (LLPayload_t) ((intptr_t) pos));
     Verify333(retval != 0);

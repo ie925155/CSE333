@@ -53,11 +53,11 @@ char *ReadFile(const char *filename, HWSize_t *size);
 // ("positions").
 //
 // We play a nasty trick; instead of malloc'ing space for the payload of the
-// linked list, we instead cast the (DocPositionOffset_t) position into a (LLPayload_t) and
-// store that as the payload.  Note we're assuming that pointers are 64 bits
-// long in order to do this. This means when you free the linked list, you
-// don't need to free the payload -- the payload free function needs to exist,
-// but it should do nothing.
+// linked list, we instead cast the (DocPositionOffset_t) position into a
+// (LLPayload_t) and store that as the payload.  Note we're assuming that
+// pointers are 64 bits long in order to do this. This means when you free the
+// linked list, you don't need to free the payload -- the payload free function
+// needs to exist, but it should do nothing.
 typedef struct WordPositions {
   char       *word;
   LinkedList  positions;
