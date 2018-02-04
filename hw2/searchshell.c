@@ -84,7 +84,6 @@ int main(int argc, char **argv) {
     }
   }
 
-  int res;
   DocTable dt;
   MemIndex idx;
   HashTable stopwordtab = NULL;

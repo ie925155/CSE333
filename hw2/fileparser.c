@@ -63,7 +63,7 @@ static void LoopAndInsert(HashTable tab, char *content, HashTable stopwordtab);
 char *ReadFile(const char *filename, HWSize_t *size) {
   struct stat filestat;
   char *buf;
-  int result, fd;
+  int fd;
   ssize_t numread;
   size_t left_to_read;
 
@@ -87,7 +87,7 @@ char *ReadFile(const char *filename, HWSize_t *size) {
   // Attempt to open the file for reading.  (man 2 open)
   fd = open(filename, O_RDONLY);
   if (fd == -1) {
-    fprintf(stderr, "%s err=%d\n", __FUNCTION__, errno);
+    fprintf(stderr, "%s err=%d\n", __func__, errno);
     *size = 0;
     return NULL;
   }
@@ -97,7 +97,7 @@ char *ReadFile(const char *filename, HWSize_t *size) {
   // NULL-terminate the string.
   buf = (char *) malloc(filestat.st_size+1);
   if (buf == NULL) {
-    fprintf(stderr, "%s malloc failed\n", __FUNCTION__);
+    fprintf(stderr, "%s malloc failed\n", __func__);
     *size = 0;
     return NULL;
   }
@@ -115,7 +115,7 @@ char *ReadFile(const char *filename, HWSize_t *size) {
   while (left_to_read > 0) {
     numread = read(fd, buf+filestat.st_size-left_to_read, left_to_read);
     if (numread == -1) {
-      fprintf(stderr, "%s read file content error %d\n", __FUNCTION__, errno);
+      fprintf(stderr, "%s read file content error %d\n", __func__, errno);
       *size = 0;
       free(buf);
       close(fd);
@@ -282,7 +282,6 @@ static void LoopAndInsert(HashTable tab, char *content, HashTable stopwordtab) {
   //
   //    AddToHashTable(tab, wordstart, pos);
   //
-  DocPositionOffset_t pos = 0, idx = 0;
   bool isalpha;
   while (1) {
     if (*curptr == '\0') {

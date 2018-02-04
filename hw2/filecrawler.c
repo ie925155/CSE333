@@ -33,7 +33,7 @@
 // When our crawler finds a directory, it invokes this function to recursively
 // descend into the directory to look for files and subdirectories.
 static void HandleDir(char *dirpath, DIR *d, DocTable *doctable,
-                      MemIndex *index, HashTable stopwordtab);
+                      MemIndex *index, HashTable *stopwordtab);
 
 // When our crawler finds a file, it invokes this function to read it in,
 // parse it, and inject it into the MemIndex. (The MemIndex is the in-memory
@@ -88,7 +88,7 @@ int CrawlFileTree(char *rootdir, DocTable *doctable, MemIndex *index,
 
 
 static void HandleDir(char *dirpath, DIR *d, DocTable *doctable,
-                     MemIndex *index, HashTable stopwordtab) {
+                     MemIndex *index, HashTable *stopwordtab) {
   // Loop through the directory.
   while (1) {
     char *newfile;
