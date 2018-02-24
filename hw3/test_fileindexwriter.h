@@ -57,11 +57,13 @@ class Test_FileIndexWriter : public ::testing::Test {
     // text fixture.  Note it is a static member function
     // (i.e., a class method, not an object instance method).
     int res;
+    bool stop_words = false;
+    HashTable stopwordtab = NULL;
     std::cout << "             Crawling ./test_tree/enron_mail..."
               << std::endl;
     res = CrawlFileTree(const_cast<char *>("./test_tree/enron_email"),
                         &Test_FileIndexWriter::dt_,
-                        &Test_FileIndexWriter::mi_);
+                        &Test_FileIndexWriter::mi_, &stopwordtab, stop_words);
     std::cout << "               ...done crawling." << std::endl;
     ASSERT_NE(0, res);
   }

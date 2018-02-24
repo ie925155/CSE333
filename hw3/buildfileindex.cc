@@ -49,6 +49,8 @@ int main(int argc, char **argv) {
   HWSize_t idxlen;
   DocTable dt;
   MemIndex idx;
+  bool stop_words = false;
+  HashTable stopwordtab = NULL;
 
   // Make sure the user provided us the right command-line options.
   if (argc != 3)
@@ -56,7 +58,7 @@ int main(int argc, char **argv) {
 
   // Try to crawl.
   std::cout << "Crawling " << argv[1] << "..." << std::endl;
-  if (CrawlFileTree(argv[1], &dt, &idx) != 1)
+  if (CrawlFileTree(argv[1], &dt, &idx, &stopwordtab, stop_words) != 1)
     Usage(argv[0]);
 
   // Try to write out the index file.
