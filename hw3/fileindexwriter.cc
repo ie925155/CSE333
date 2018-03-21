@@ -124,11 +124,17 @@ HWSize_t WriteIndex(MemIndex mi, DocTable dt, const char *filename) {
   filesize += dtres;
 
   // write the memindex using WriteMemIndex().
-  // MISSING:
+  mires = WriteMemIndex(f, mi, sizeof(IndexFileHeader) + dtres);
+  if (mires == 0) {
+    fclose(f);
+    unlink(filename);
+    return 0;
+  }
+  filesize += mires;
 
 
   // write the header using WriteHeader().
-  // MISSING:
+  filesize += WriteHeader(f, dtres, mires);
 
 
   // Clean up and return the total amount written.
@@ -145,8 +151,7 @@ static HWSize_t WriteDocidDocnameFn(FILE *f,
   uint16_t slen_ho;
 
   // determine the filename length
-  // MISSING (change this assignment to the correct thing):
-  slen_ho = 0;
+  slen_ho = strlen(static_cast<char *>(kv->value));
 
   // fwrite() the docid from "kv".  Remember to convert to
   // disk format before writing.
@@ -162,11 +167,12 @@ static HWSize_t WriteDocidDocnameFn(FILE *f,
 
   // fwrite() the filename.  We don't write the null-terminator from
   // the string, just the characters.
-  // MISSING:
+  res = fwrite(kv->value, slen_ho, 1, f);
+  if (res != 1)
+    return 0;
 
   // calculate and return the total amount written.
-  // MISSING (change this return to the correct thing):
-  return 0;
+  return (sizeof(header) + slen_ho);
 }
 
 static HWSize_t WriteDocTable(FILE *f, DocTable dt, IndexFileOffset_t offset) {
@@ -198,7 +204,14 @@ static HWSize_t WriteDocPositionListFn(FILE *f,
 
   // Write the header, in disk format.
   // You'll need to fseek() to the right location in the file.
-  // MISSING:
+  docid_element_header header = {docID_ho, num_pos_ho};
+  header.toDiskFormat();
+
+  if (fseek(f, offset, SEEK_SET) != 0)
+    return 0;
+  res = fwrite(&header, sizeof(header), 1, f);
+  if (res != 1)
+    return 0;
 
 
   // Loop through the positions list, writing each position out.
@@ -208,10 +221,15 @@ static HWSize_t WriteDocPositionListFn(FILE *f,
   Verify333(it != nullptr);
   for (i = 0; i < num_pos_ho; i++) {
     // Get the next position from the list.
-    // MISSING:
+    LLPayload_t payload;
+    LLIteratorGetPayload(it, (LLPayload_t*) &payload);
 
     // Truncate to 32 bits, then convert it to network order and write it out.
-    // MISSING:
+    position.position = (DocPositionOffset_t) (intptr_t) payload;
+    position.toDiskFormat();
+    res = fwrite(&position.position, sizeof(docid_element_position), 1, f);
+    if (res != 1)
+      return 0;
 
 
     // Iterate to the next position.
@@ -220,8 +238,7 @@ static HWSize_t WriteDocPositionListFn(FILE *f,
   LLIteratorFree(it);
 
   // Calculate and return the total amount of data written.
-  // MISSING (fix this return value):
-  return 0;
+  return sizeof(header) + num_pos_ho * sizeof(docid_element_position);
 }
 
 // This write_element_fn is used to write a WordDocSet
@@ -237,7 +254,7 @@ static HWSize_t WriteWordDocSetFn(FILE *f,
 
   // Prepare the wordlen field.
   uint16_t wordlen_ho;
-  // MISSING:
+  wordlen_ho = strlen(wds->word);
 
 
   // Write the nested DocID->positions hashtable (i.e., the "docID
@@ -252,17 +269,24 @@ static HWSize_t WriteWordDocSetFn(FILE *f,
   // Write the header, in network order, in the right
   // place in the file.
   worddocset_header header = {wordlen_ho, htlen_ho};
-  // MISSING:
+  header.toDiskFormat();
+  res = fseek(f, offset, SEEK_SET);
+  if (res != 0)
+    return 0;
+  res = fwrite(&header, sizeof(worddocset_header_st), 1, f);
+  if (res != 1)
+    return 0;
 
 
   // Write the word itself, excluding the nullptr terminator,
   // in the right place in the file.
-  // MISSING:
+  res = fwrite(wds->word, wordlen_ho, 1, f);
+  if (res != 1)
+    return 0;
 
 
   // Calculate and return the total amount of data written.
-  // MISSING (fix this return value):
-  return 0;
+  return sizeof(worddocset_header) + wordlen_ho + htlen_ho;
 }
 
 static HWSize_t WriteMemIndex(FILE *f, MemIndex mi, IndexFileOffset_t offset) {
@@ -290,7 +314,14 @@ static HWSize_t WriteHeader(FILE *f,
   HWSize_t cslen = doct_size + memidx_size;
   CRC32 crcobj;
 
-  // MISSING:
+  if (fseek(f, sizeof(IndexFileHeader), SEEK_SET) != 0)
+    return 0;
+  uint8_t data;
+  for (int i = 0; i < cslen; i++) {
+    fread(&data, 1, sizeof(uint8_t), f);
+    crcobj.FoldByteIntoCRC(data);
+  }
+  header.checksum = crcobj.GetFinalCRC();
 
 
   // Write the header fields.  Be sure to convert the fields to
@@ -319,7 +350,9 @@ static HWSize_t WriteBucketRecord(FILE *f,
   // elements are in this bucket.  Put bucket_rec in network
   // byte order.
   bucket_rec br;
-  // MISSING:
+  br.chain_len = NumElementsInLinkedList(li);
+  br.bucket_position = b_offset;
+  br.toDiskFormat();
 
 
   // fseek() to the "bucket_rec" record for this bucket.
@@ -328,7 +361,9 @@ static HWSize_t WriteBucketRecord(FILE *f,
     return 0;
 
   // Write the bucket_rec.
-  // MISSING:
+  res = fwrite(&br, sizeof(bucket_rec), 1, f);
+  if (res != 1)
+    return 0;
 
   // Calculate and return how many bytes we wrote.
   return sizeof(bucket_rec);
@@ -359,12 +394,27 @@ static HWSize_t WriteBucket(FILE *f,
     LLIter it = LLMakeIterator(li, 0);
     Verify333(it != nullptr);
     HWSize_t j;
+    element_position_rec position;
     for (j = 0; j < chainlen_ho; j++) {
       HWSize_t ellen, res;
-      HTKeyValue *kv;
+      HTKeyValue kv;
 
-      // MISSING:
-
+      res = fseek(f, offset, SEEK_SET);
+      if (res != 0)
+        return 0;
+      offset += sizeof(HWSize_t);
+      position.element_position = nextelpos;
+      position.toDiskFormat();
+      res = fwrite(&position.element_position, sizeof(element_position_rec), 1, f);
+      if (res != 1) {
+        printf("%s\n", "fwrite error");
+        return 0;
+      }
+      LLPayload_t payload;
+      LLIteratorGetPayload(it, &payload);
+      kv.key = ((HTKeyValuePtr)payload)->key;
+      kv.value = ((HTKeyValuePtr)payload)->value;
+      ellen = fn(f, nextelpos, &kv);
 
       // Advance to the next element in the chain, tallying up our
       // lengths.
@@ -395,7 +445,7 @@ static HWSize_t WriteHashTable(FILE *f,
   // network order.
   BucketListHeader header = {ht->num_buckets};
   header.toDiskFormat();
-  res = fseek(f, offset, SEEK_SET);
+  res = fseek(f, offset, SEEK_SET);;
   if (res != 0)
     return 0;
   res = fwrite(&header.num_buckets, sizeof(BucketListHeader), 1, f);
@@ -418,7 +468,10 @@ static HWSize_t WriteHashTable(FILE *f,
   // empty.  For that case, you still have to write a "bucket_rec"
   // record for the bucket, but you won't write a "bucket".
   for (i = 0; i < ht->num_buckets; i++) {
-    // MISSING:
+    LinkedList li = ht->buckets[i];
+    next_bucket_rec_offset += WriteBucketRecord(f, li, next_bucket_rec_offset,
+      next_bucket_offset);
+    next_bucket_offset += WriteBucket(f, li, next_bucket_offset, fn);
   }
 
   // Calculate and return the total number of bytes written.
