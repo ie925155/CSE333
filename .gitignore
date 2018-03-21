@@ -30,3 +30,11 @@ hw2/libhw2\.a
 hw2/searchshell
 
 hw2/test_suite
+
+hw3/buildfileindex
+
+hw3/filesearchshell
+
+hw3/libhw3\.a
+
+hw3/test_suite
