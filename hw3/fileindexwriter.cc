@@ -161,7 +161,7 @@ static HWSize_t WriteDocidDocnameFn(FILE *f,
   // fseek() to the provided offset and then write the header.
   if (fseek(f, offset, SEEK_SET) != 0)
     return 0;
-  res = fwrite(&header, sizeof(header), 1, f);
+  res = fwrite(&header, sizeof(doctable_element_header), 1, f);
   if (res != 1)
     return 0;
 
@@ -172,7 +172,7 @@ static HWSize_t WriteDocidDocnameFn(FILE *f,
     return 0;
 
   // calculate and return the total amount written.
-  return (sizeof(header) + slen_ho);
+  return (sizeof(doctable_element_header) + slen_ho);
 }
 
 static HWSize_t WriteDocTable(FILE *f, DocTable dt, IndexFileOffset_t offset) {
@@ -330,7 +330,7 @@ static HWSize_t WriteHeader(FILE *f,
 
   if (fseek(f, 0, SEEK_SET) != 0)
     return 0;
-  if (fwrite(&header, sizeof(header), 1, f) != 1)
+  if (fwrite(&header, sizeof(IndexFileHeader), 1, f) != 1)
     return 0;
 
   // Use fsync to flush the header field to disk.

@@ -21,6 +21,7 @@
 #include <sys/types.h>  // for stat()
 #include <sys/stat.h>   // for stat()
 #include <unistd.h>     // for stat()
+#include <signal.h>
 
 #include "./fileindexutil.h"   // for class CRC32.
 #include "./FileIndexReader.h"
@@ -41,15 +42,14 @@ FileIndexReader::FileIndexReader(std::string filename,
   Verify333(file_ != nullptr);
 
   // Make the (FILE *) be unbuffered.  ("man setbuf")
-  // MISSING:
-
+  setvbuf(file_, nullptr, _IONBF, BUFSIZ);
 
   // Read the entire file header and convert to host format.
-  // MISSING:
-
+  Verify333(fread(&header_, sizeof(IndexFileHeader), 1, file_) == 1);
+  header_.toHostFormat();
 
   // Verify that the magic number is correct.  Crash if not.
-  // MISSING:
+  Verify333(header_.magic_number == MAGIC_NUMBER);
 
 
   // Make sure the index file's length lines up with the header fields.
@@ -69,7 +69,11 @@ FileIndexReader::FileIndexReader(std::string filename,
     uint8_t buf[512];
     HWSize_t left_to_read = header_.doctable_size + header_.index_size;
     while (left_to_read > 0) {
-      // MISSING:
+      uint32_t readlen = fread(&buf[0], 1, 512, file_);
+      Verify333(readlen > 0);
+      for (uint32_t i = 0; i < readlen; i++)
+        crcobj.FoldByteIntoCRC(buf[i]);
+      left_to_read -= readlen;
     }
     Verify333(crcobj.GetFinalCRC() == header_.checksum);
   }
