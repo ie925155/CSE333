@@ -53,7 +53,9 @@ bool DocTableReader::LookupDocID(const DocID_t &docid,
 
     // Slurp the next docid out of the element.
     doctable_element_header header;
-    // MISSING:
+    Verify333(fseek(file_, next_offset, SEEK_SET) == 0);
+    Verify333(fread(&header, sizeof(doctable_element_header), 1, file_) == 1);
+    header.toHostFormat();
 
 
     // Is it a match?
@@ -71,7 +73,7 @@ bool DocTableReader::LookupDocID(const DocID_t &docid,
       // Using the str() method of ss to extract a std::string object,
       // and return it through the output parameter ret_str.  Return
       // true.
-      // MISSING:
+      *ret_str = ss.str();
 
       return true;
     }
