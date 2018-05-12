@@ -50,7 +50,9 @@ bool DocIDTableReader::LookupDocID(const DocID_t &docid,
 
     // Slurp the next docid out of the element.
     docid_element_header header;
-    // MISSING:
+    Verify333(fseek(file_, next_offset, SEEK_SET) == 0);
+    Verify333(fread(&header, sizeof(docid_element_header), 1, file_) == 1);
+    header.toHostFormat();
 
     // Is it a match?
     if (header.docid == docid) {
@@ -59,14 +61,21 @@ bool DocIDTableReader::LookupDocID(const DocID_t &docid,
       // order, adding to the end of the list as you extract
       // successive positions.
 
-      // MISSING:
+      std::list<IndexFileOffset_t> retval;
+      docid_element_position_st position;
+      for (HWSize_t i = 0; i < header.num_positions; i++) {
+        Verify333(fread(&position.position, sizeof(docid_element_position_st),
+          1, file_) == 1);
+        position.toHostFormat();
+        retval.push_back(position.position);
+      }
 
 
 
       // Return the positions list through the output parameter,
       // and return true.
 
-      // MISSING:
+      *ret_list = retval;
 
 
       return true;
@@ -88,32 +97,37 @@ list<docid_element_header> DocIDTableReader::GetDocIDList() {
     // Seek to the next bucket_rec.  The "offset_" member
     // variable stores the offset of this docid table within
     // the index file .
-    // MISSING:
-
+    IndexFileOffset_t next_bucket_rec = offset_ + sizeof(BucketListHeader)
+      + i * sizeof(bucket_rec);
+    Verify333(fseek(file_, next_bucket_rec, SEEK_SET) == 0);
 
     // Read in the chain length and bucket position fields from
     // the bucket_rec.
     bucket_rec b_rec;
-    // MISSING:
+    Verify333(fread(&b_rec, sizeof(bucket_rec), 1, file_) == 1);
+    b_rec.toHostFormat();
 
 
     // Sweep through the next bucket, iterating through each
     // chain element in the bucket.
     for (HWSize_t j = 0; j < b_rec.chain_len; j++) {
       // Seek to chain element's position field in the bucket header.
-      Verify333(fseek(file_,   b_rec.bucket_position
+      Verify333(fseek(file_, b_rec.bucket_position
                              + j*sizeof(element_position_rec), SEEK_SET) == 0);
 
       // Read the next element position from the bucket header.
       element_position_rec  ep;
-      // MISSING:
+      Verify333(fread(&ep, sizeof(element_position_rec), 1, file_) == 1);
+      ep.toHostFormat();
+
 
       // Seek to the element itself.
-      // MISSING:
+      Verify333(fseek(file_, ep.element_position, SEEK_SET) == 0);
 
       // Read in the docid and number of positions from the element.
       docid_element_header doc_el;
-      // MISSING:
+      Verify333(fread(&doc_el, sizeof(docid_element_header), 1, file_) == 1);
+      doc_el.toHostFormat();
 
 
       // Append it to our result list.
