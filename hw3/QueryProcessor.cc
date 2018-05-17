@@ -20,6 +20,7 @@
 
 #include <iostream>
 #include <algorithm>
+#include <map>
 
 #include "./QueryProcessor.h"
 
@@ -72,8 +73,45 @@ QueryProcessor::ProcessQuery(const vector<string> &query) {
   Verify333(query.size() > 0);
   vector<QueryProcessor::QueryResult> finalresult;
 
-  // MISSING:
-
+  for (HWSize_t i = 0; i < arraylen_; i++) {
+    std::map<DocID_t, QueryProcessor::QueryResult> map;
+    for (size_t j = 0; j < query.size(); j++) {
+      DocIDTableReader *ditr = itr_array_[i]->LookupWord(query[j]);
+      if (ditr == nullptr) {
+        map.clear();
+        break;
+      }
+      if (j == 0) {
+        list<docid_element_header> docidList = ditr->GetDocIDList();
+        for (auto it = docidList.begin(); it != docidList.end(); ++it) {
+          docid_element_header header = *it;
+          string file_name;
+          bool ret = dtr_array_[i]->LookupDocID(header.docid, &file_name);
+          if (ret) {
+            QueryResult result;
+            result.document_name = file_name;
+            result.rank = header.num_positions;
+            map[header.docid] = result;
+          }
+        }
+      } else {
+        for(auto it = map.begin(); it != map.end(); ) {
+          DocID_t docid = it->first;
+          std::list<DocPositionOffset_t> matchlist;
+          if (ditr->LookupDocID(docid, &matchlist)) {
+            it->second.rank += matchlist.size();
+            ++it;
+          } else {
+            it = map.erase(it);
+          }
+        }
+      }
+      delete ditr;
+    } // end of queries
+    for(auto it = map.begin(); it != map.end(); it++) {
+      finalresult.push_back(it->second);
+    }
+  }
 
   // Sort the final results.
   std::sort(finalresult.begin(), finalresult.end());
