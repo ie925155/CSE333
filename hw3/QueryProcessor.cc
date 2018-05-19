@@ -76,7 +76,9 @@ QueryProcessor::ProcessQuery(const vector<string> &query) {
   for (HWSize_t i = 0; i < arraylen_; i++) {
     std::map<DocID_t, QueryProcessor::QueryResult> map;
     for (size_t j = 0; j < query.size(); j++) {
-      DocIDTableReader *ditr = itr_array_[i]->LookupWord(query[j]);
+      string data = query[j];
+      transform(data.begin(), data.end(), data.begin(),::tolower);
+      DocIDTableReader *ditr = itr_array_[i]->LookupWord(data);
       if (ditr == nullptr) {
         map.clear();
         break;

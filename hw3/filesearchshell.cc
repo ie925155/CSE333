@@ -20,13 +20,48 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
+#include <limits.h>
+#include <dirent.h>
+#include <sys/stat.h>
 
 #include "./QueryProcessor.h"
+
+typedef struct {
+  int32_t query_count;
+  char **queries;
+} QueriesInfo;
+
+static QueriesInfo parsingArgument(char str[]);
 
 static void Usage(char *progname) {
   std::cerr << "Usage: " << progname << " [index files+]" << std::endl;
   exit(EXIT_FAILURE);
+}
+
+static QueriesInfo parsingArgument(char str[]) {
+  char *delim = (char *)" ";
+  char *pch;
+  char *saveptr;
+  QueriesInfo queriesInfo;
+  char tmpStr[MAX_INPUT];
+  strncpy(tmpStr, str, MAX_INPUT);
+  int str_count = 0, idx = 0;
+  pch = strtok_r(tmpStr, delim, &saveptr);
+  while (pch != NULL) {
+    str_count++;
+    pch = strtok_r(NULL, delim, &saveptr);
+  }
+  queriesInfo.query_count = str_count;
+  queriesInfo.queries = (char **) malloc(sizeof(char *) * str_count);
+  pch = strtok_r(str, delim, &saveptr);
+  while (pch != NULL) {
+    queriesInfo.queries[idx++] = pch;
+    pch = strtok_r(NULL, delim, &saveptr);
+  }
+  queriesInfo.query_count = idx;
+  return queriesInfo;
 }
 
 // Your job is to implement the entire filesearchshell.cc
@@ -88,7 +123,32 @@ static void Usage(char *progname) {
 int main(int argc, char **argv) {
   if (argc < 2) Usage(argv[0]);
 
+  list<string> idxlist;
+  for (int i = 1; i < argc; i++) {
+    idxlist.push_back(argv[i]);
+  }
+  hw3::QueryProcessor qp(idxlist);
+  char str[256] = {0x0};
+  QueriesInfo queriesInfo;
   while (1) {
+    fprintf(stdout, "%s\n", "Enter query:");
+    fgets(str, sizeof(str), stdin);
+    str[strlen(str)-1] = '\0';
+    queriesInfo = parsingArgument(str);
+    vector<string> query;
+    for (int i = 0; i < queriesInfo.query_count; i++) {
+      query.push_back(queriesInfo.queries[i]);
+    }
+    vector<hw3::QueryProcessor::QueryResult> res = qp.ProcessQuery(query);
+    if (res.size() == 0) {
+      fprintf(stdout, "%s\n", "[no results]");
+      free(queriesInfo.queries);
+      continue;
+    }
+    for (size_t i = 0; i < res.size(); i++) {
+      fprintf(stdout, "%s (%u)\n", res[i].document_name.c_str(), res[i].rank);
+    }
+    free(queriesInfo.queries);
   }
 
   return EXIT_SUCCESS;
