@@ -136,6 +136,8 @@ bool ServerSocket::BindAndListen(int ai_family, int *listen_fd) {
       // Bind worked!  Print out the information about what
       // we bound to.
       PrintOut(fd, rp->ai_addr, rp->ai_addrlen);
+
+      sock_family_ = rp->ai_family;
       break;
     }
 
@@ -161,7 +163,7 @@ bool ServerSocket::BindAndListen(int ai_family, int *listen_fd) {
     close(fd);
     return false;
   }
-  *listen_fd = fd;
+  listen_sock_fd_ = *listen_fd = fd;
   return true;
 }
 
@@ -175,10 +177,47 @@ bool ServerSocket::Accept(int *accepted_fd,
   // (Block until a new connection arrives.)  Return the newly accepted
   // socket, as well as information about both ends of the new connection,
   // through the various output parameters.
+  struct sockaddr_storage caddr;
+  socklen_t caddr_len = sizeof(caddr);
+  int client_fd = accept(listen_sock_fd_,
+                         reinterpret_cast<struct sockaddr *>(&caddr),
+                         &caddr_len);
+  if (client_fd < 0) {
+    std::cerr << "Failure on accept: " << strerror(errno) << std::endl;
+    return false;
+  }
+  struct sockaddr *addr = reinterpret_cast<struct sockaddr *>(&caddr);
+  char astring[INET_ADDRSTRLEN];
+  struct sockaddr_in *in4 = reinterpret_cast<struct sockaddr_in *>(addr);
+  inet_ntop(AF_INET, &(in4->sin_addr), astring, INET_ADDRSTRLEN);
+  std::cout << " IPv4 address " << astring;
+  std::cout << " and port " << htons(in4->sin_port) << std::endl;
+  char hostname[1024];  // ought to be big enough.
+  if (getnameinfo(addr, caddr_len, hostname, 1024, NULL, 0, 0) != 0) {
+    sprintf(hostname, "[reverse DNS failed]");
+    return false;
+  }
+  std::cout << " DNS name: " << hostname << std::endl;
+  *client_addr = astring;
+  *accepted_fd = client_fd;
+  *client_port = htons(in4->sin_port);
+  *client_dnsname = hostname;
 
-  // MISSING:
-
-
+  char hname[1024];
+  hname[0] = '\0';
+  struct sockaddr_in srvr;
+  socklen_t srvrlen = sizeof(srvr);
+  char addrbuf[INET_ADDRSTRLEN];
+  getsockname(client_fd, (struct sockaddr *) &srvr, &srvrlen);
+  inet_ntop(AF_INET, &srvr.sin_addr, addrbuf, INET_ADDRSTRLEN);
+  std::cout << addrbuf;
+  // Get the server's dns name, or return it's IP address as
+  // a substitute if the dns lookup fails.
+  getnameinfo((const struct sockaddr *) &srvr,
+              srvrlen, hname, 1024, NULL, 0, 0);
+  std::cout << " [" << hname << "]" << std::endl;
+  *server_addr = addrbuf;
+  *server_dnsname = hname;
   return true;
 }
 
