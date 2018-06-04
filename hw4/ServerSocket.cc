@@ -36,6 +36,9 @@ extern "C" {
 
 namespace hw4 {
 
+void PrintOut(int fd, struct sockaddr *addr, size_t addrlen);
+
+
 ServerSocket::ServerSocket(uint16_t port) {
   port_ = port;
   listen_sock_fd_ = -1;
@@ -50,14 +53,115 @@ ServerSocket::~ServerSocket() {
   listen_sock_fd_ = -1;
 }
 
+void PrintOut(int fd, struct sockaddr *addr, size_t addrlen) {
+  std::cout << "Socket [" << fd << "] is bound to:" << std::endl;
+  if (addr->sa_family == AF_INET) {
+    // Print out the IPV4 address and port
+
+    char astring[INET_ADDRSTRLEN];
+    struct sockaddr_in *in4 = reinterpret_cast<struct sockaddr_in *>(addr);
+    inet_ntop(AF_INET, &(in4->sin_addr), astring, INET_ADDRSTRLEN);
+    std::cout << " IPv4 address " << astring;
+    std::cout << " and port " << htons(in4->sin_port) << std::endl;
+
+  } else if (addr->sa_family == AF_INET6) {
+    // Print out the IPV4 address and port
+
+    char astring[INET6_ADDRSTRLEN];
+    struct sockaddr_in6 *in6 = reinterpret_cast<struct sockaddr_in6 *>(addr);
+    inet_ntop(AF_INET, &(in6->sin6_addr), astring, INET6_ADDRSTRLEN);
+    std::cout << " IPv6 address " << astring;
+    std::cout << " and port " << htons(in6->sin6_port) << std::endl;
+
+  } else {
+    std::cout << " ???? address and port ????" << std::endl;
+  }
+}
+
 bool ServerSocket::BindAndListen(int ai_family, int *listen_fd) {
   // Use "getaddrinfo," "socket," "bind," and "listen" to
   // create a listening socket on port port_.  Return the
   // listening socket through the output parameter "listen_fd".
 
-  // MISSING:
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(struct addrinfo));
+  hints.ai_family = ai_family;      // allow IPv4 or IPv6
+  hints.ai_socktype = SOCK_STREAM;  // stream
+  hints.ai_flags = AI_PASSIVE;      // use wildcard "INADDR_ANY"
+  hints.ai_protocol = IPPROTO_TCP;  // tcp protocol
+  hints.ai_canonname = NULL;
+  hints.ai_addr = NULL;
+  hints.ai_next = NULL;
+
+  struct addrinfo *result;
+  char buffer [32];
+  sprintf(buffer, "%d", port_);
+  int res = getaddrinfo(NULL, buffer, &hints, &result);
+
+  // Did addrinfo() fail?
+  if (res != 0) {
+    std::cerr << "getaddrinfo() failed: ";
+    std::cerr << gai_strerror(res) << std::endl;
+    return false;
+  }
 
 
+  // Loop through the returned address structures until we are able
+  // to create a socket and bind to one.  The address structures are
+  // linked in a list through the "ai_next" field of result.
+  int fd = -1;
+  for (struct addrinfo *rp = result; rp != NULL; rp = rp->ai_next) {
+    fd = socket(rp->ai_family,
+                       rp->ai_socktype,
+                       rp->ai_protocol);
+    if (fd == -1) {
+      // Creating this socket failed.  So, loop to the next returned
+      // result and try again.
+      std::cerr << "socket() failed: " << strerror(errno) << std::endl;
+      fd = 0;
+      continue;
+    }
+
+    // Configure the socket; we're setting a socket "option."  In
+    // particular, we set "SO_REUSEADDR", which tells the TCP stack
+    // so make the port we bind to available again as soon as we
+    // exit, rather than waiting for a few tens of seconds to recycle it.
+    int optval = 1;
+    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
+               &optval, sizeof(optval));
+
+    // Try binding the socket to the address and port number returned
+    // by getaddrinfo().
+    if (bind(fd, rp->ai_addr, rp->ai_addrlen) == 0) {
+      // Bind worked!  Print out the information about what
+      // we bound to.
+      PrintOut(fd, rp->ai_addr, rp->ai_addrlen);
+      break;
+    }
+
+    // The bind failed.  Close the socket, then loop back around and
+    // try the next address/port returned by getaddrinfo().
+    close(fd);
+    fd = -1;
+  }
+  // Free the structure returned by getaddrinfo().
+  freeaddrinfo(result);
+
+  // Did we succeed in binding to any addresses?
+  if (fd == -1) {
+    // No.  Quit with failure.
+    std::cerr << "Couldn't bind to any addresses." << std::endl;
+    return false;
+  }
+
+  // Success. Tell the OS that we want this to be a listening socket.
+  if (listen(fd, SOMAXCONN) != 0) {
+    std::cerr << "Failed to mark socket as listening: ";
+    std::cerr << strerror(errno) << std::endl;
+    close(fd);
+    return false;
+  }
+  *listen_fd = fd;
   return true;
 }
 

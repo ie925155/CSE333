@@ -101,6 +101,21 @@ void GetPortAndPath(int argc,
   //  (c) that "path" (i.e., argv[2]) is a readable directory
   //  (d) that you have at least one index, and that all indices
   //      are readable files.
+  int result;
+  struct stat rootstat;
 
-  // MISSING:
+  *port = atoi(argv[1]);
+  result = stat((char *) argv[2], &rootstat);
+  if (result == -1) {
+    return;
+  }
+  if (!S_ISDIR(rootstat.st_mode)) {
+    // It isn't a directory, so give up.
+    fprintf(stderr, "%s\n", "you have to index directory");
+    return;
+  }
+  *path  = argv[2];
+  for (int i = 3; i < argc; i++) {
+    indices->push_back(argv[i]);
+  }
 }
