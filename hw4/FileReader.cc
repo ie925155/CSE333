@@ -23,6 +23,11 @@
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
+#include <memory>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 extern "C" {
   #include "libhw2/fileparser.h"
@@ -49,9 +54,39 @@ bool FileReader::ReadFile(std::string *str) {
   // deleter to automatically manage this for you; see the comment in
   // HttpUtils.h above the MallocDeleter class for details.
 
-  // MISSING:
+  int fd;
+  size_t left_to_read;
+  ssize_t numread;
+  struct stat filestat;
+  stat(fullfile.c_str(), &filestat);
+  if (!S_ISREG(filestat.st_mode)) {
+    return false;
+  }
 
+  fd = open(fullfile.c_str(), O_RDONLY);
+  if (fd == -1) {
+    fprintf(stderr, "%s err=%d\n", __func__, errno);
+    return false;
+  }
+  std::unique_ptr<char, MallocDeleter<char>> buf((char*)malloc(filestat.st_size+1));
 
+  left_to_read = filestat.st_size;
+  numread = 0;
+  while (left_to_read > 0) {
+    numread = read(fd, buf.get()+filestat.st_size-left_to_read, left_to_read);
+    if (numread == -1) {
+      fprintf(stderr, "%s read file content error %d\n", __func__, errno);
+      close(fd);
+      return false;
+    } else if (numread == 0) {
+      break;
+    }
+    left_to_read -= numread;
+  }
+  close(fd);
+  buf.get()[filestat.st_size] = '\0';
+
+  *str = buf.get();
   return true;
 }
 
