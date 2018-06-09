@@ -24,13 +24,17 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <iostream>
 
 #include "./HttpRequest.h"
 #include "./HttpUtils.h"
 #include "./HttpConnection.h"
 
+using std::vector;
 using std::map;
 using std::string;
+
+#define BUFFER_SIZE 1024
 
 namespace hw4 {
 
@@ -48,8 +52,14 @@ bool HttpConnection::GetNextRequest(HttpRequest *request) {
   // after the "\r\n\r\n" in buffer_ for the next time the
   // caller invokes GetNextRequest()!
 
-  // MISSING:
-
+  size_t index;
+  unsigned char buffer[BUFFER_SIZE]= {0x00};
+  while((index = buffer_.find("\r\n\r\n")) == std::string::npos) {
+    WrappedRead(fd_, buffer, BUFFER_SIZE);
+    string tmp((const char*)buffer);
+    buffer_ += tmp;
+  }
+  *request = ParseRequest(index);
 
   return true;
 }
@@ -82,10 +92,25 @@ HttpRequest HttpConnection::ParseRequest(size_t end) {
   // a string into lines on a "\r\n" delimiter, (b) trimming
   // whitespace from the end of a string, and (c) converting a string
   // to lowercase.
-
-  // MISSING:
-
-
+  vector<string> strs;
+  boost::split(strs, str, boost::is_any_of("\r\n"), boost::token_compress_on);
+  string line;
+  for(size_t i = 0; i < strs.size(); i++) {
+    line = strs[i];
+    std::transform(line.begin(), line.end(), line.begin(), ::tolower);
+    if (i == 0) {
+      size_t found = line.find("/");
+      size_t uri_len = line.find(" ", found) - found;
+      req.URI = line.substr(found, uri_len);
+    } else {
+      size_t found = line.find(" ");
+      string key = line.substr(0, found-1);
+      string value = line.substr(found+1, line.length());
+      req.headers[key] = value;
+    }
+  }
+  // set to next request
+  buffer_.erase(0, end+4);
   return req;
 }
 
