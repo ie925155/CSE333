@@ -34,8 +34,6 @@ using std::vector;
 using std::map;
 using std::string;
 
-#define BUFFER_SIZE 1024
-
 namespace hw4 {
 
 bool HttpConnection::GetNextRequest(HttpRequest *request) {
@@ -53,9 +51,9 @@ bool HttpConnection::GetNextRequest(HttpRequest *request) {
   // caller invokes GetNextRequest()!
 
   size_t index;
-  unsigned char buffer[BUFFER_SIZE]= {0x00};
+  unsigned char buffer[BUFSIZ]= {0x00};
   while((index = buffer_.find("\r\n\r\n")) == std::string::npos) {
-    WrappedRead(fd_, buffer, BUFFER_SIZE);
+    WrappedRead(fd_, buffer, BUFSIZ);
     string tmp((const char*)buffer);
     buffer_ += tmp;
   }

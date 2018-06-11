@@ -102,7 +102,11 @@ void HttpServer_ThrFn(ThreadPool::Task *t) {
     // client sent a "Connection: close\r\n" header, then shut down
     // the connection.
 
-    // MISSING:
+    HttpRequest htreq1;
+    HttpConnection hc(hst->client_fd);
+    hc.GetNextRequest(&htreq1);
+    HttpResponse ret =  ProcessRequest(htreq1, hst->basedir, hst->indices);
+    done = hc.WriteResponse(ret);
   }
 }
 
@@ -143,17 +147,38 @@ HttpResponse ProcessFileRequest(const std::string &uri,
   // in the HttpResponse as well.
   std::string fname = "";
 
-  // MISSING:
+  URLParser parser;
+  parser.Parse(uri);
+  fname = parser.get_path();
+  fname.erase(0, 8);
+  if (fname.find("test_tree/") == std::string::npos) {
+    ret.protocol = "HTTP/1.1";
+    ret.response_code = 404;
+    ret.message = "Forbidden";
+    ret.body = "<html><body>Couldn't access file \"";
+    ret.body +=  EscapeHTML(fname);
+    ret.body += "\"</body></html>";
+    return ret;
+  }
+  FileReader f(basedir, fname);
+  std::cout << basedir << fname << std::endl;
+  std::string contents;
+  if (!f.ReadFile(&contents)) {
 
-
-
-  // If you couldn't find the file, return an HTTP 404 error.
-  ret.protocol = "HTTP/1.1";
-  ret.response_code = 404;
-  ret.message = "Not Found";
-  ret.body = "<html><body>Couldn't find file \"";
-  ret.body +=  EscapeHTML(fname);
-  ret.body += "\"</body></html>";
+    // If you couldn't find the file, return an HTTP 404 error.
+    ret.protocol = "HTTP/1.1";
+    ret.response_code = 404;
+    ret.message = "Not Found";
+    ret.body = "<html><body>Couldn't find file \"";
+    ret.body +=  EscapeHTML(fname);
+    ret.body += "\"</body></html>";
+  } else {
+    ret.protocol = "HTTP/1.1";
+    ret.response_code = 200;
+    ret.message = "OK";
+    ret.headers["Content-Type"] = "text/plain";
+    ret.body += contents;
+  }
   return ret;
 }
 
@@ -183,8 +208,64 @@ HttpResponse ProcessQueryRequest(const std::string &uri,
   //    how to hyperlink results to the file contents, like we did
   //    in our solution_binaries/http333d.
 
-  // MISSING:
+  string logo = "<html><head><title>333gle</title></head>\n";
+    logo += "<body>\n";
+    logo += "<center style=\"font-size:500%;\"> <span style=\"position:relative;bottom:-0.33em;color:orange;\">3</span><span style=\"color:red;\">3</span><span style=\"color:gold;\">3</span><span style=\"color:blue;\">g</span><span style=\"color:green;\">l</span><span style=\"color:red;\">e</span>\n </center>";
+    logo += "<p>\n <div style=\"height:20px;\"></div>\n";
+    logo += "<center>\n";
+    logo += "<form action=\"/query\" method=\"get\">\n";
+    logo += "<input type=\"text\" size=30 name=\"terms\" />\n";
+    logo += "<input type=\"submit\" value=\"Search\" />\n";
+    logo += "</form>\n";
+    logo += "</center><p>\n";
 
+  if (uri == "/") {
+    ret.protocol = "HTTP/1.1";
+    ret.response_code = 200;
+    ret.message = "OK";
+    ret.body = logo;
+    ret.body += "</body>\n </html>\n";
+  } else {
+    ret.protocol = "HTTP/1.1";
+    ret.response_code = 200;
+    ret.message = "OK";
+    ret.body = logo;
+    vector<string> query;
+    hw3::QueryProcessor qp(*indices, false);
+    URLParser parser;
+    parser.Parse(uri);
+    map<string, string> args = parser.get_args();
+    size_t found;
+    string arg = args["terms"];
+    std::cout << "terms: " << arg << std::endl;
+    while ((found = arg.find(" ")) != std::string::npos) {
+      query.push_back(arg.substr(0, found));
+      std::cout << "1 query: " << arg.substr(0, found) << std::endl;
+      arg.erase(0, found+1);
+    }
+    std::cout << "2 query: " << arg << std::endl;
+    query.push_back(arg);
+    char buf[256] = {0x00};
+    vector<hw3::QueryProcessor::QueryResult> res = qp.ProcessQuery(query);
+    sprintf(buf, "<p><br> %ld results found for <b>%s</b><p>\n", res.size(),
+      EscapeHTML(args["terms"]).c_str());
+    ret.body += buf;
+    if (res.size() != 0) {
+      ret.body += "<ul>";
+      for (size_t i = 0; i < res.size(); i++) {
+        if (res[i].document_name.substr(0, 4) == "http") {
+          sprintf(buf, "<li> <a href=\"%s\">%s</a> [%u]<br>\n",
+            res[i].document_name.c_str(), res[i].document_name.c_str(), res[i].rank);
+        } else {
+          sprintf(buf, "<li> <a href=\"/static/%s\">%s</a> [%u]<br>\n",
+            res[i].document_name.c_str(), res[i].document_name.c_str(), res[i].rank);
+        }
+        ret.body += buf;
+      }
+      ret.body += "</ul>\n";
+    }
+    ret.body += "</body>\n</html>\n";
+  }
 
   return ret;
 }
